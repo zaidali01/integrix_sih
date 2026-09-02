@@ -74,9 +74,9 @@ export default function AssetVault() {
             <tbody>
               {assets.map(asset => (
                 <tr key={asset.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
-                  <td className="p-4 flex items-center gap-3">
-                    <FileText className="text-cyan-400" size={20} />
-                    <span className="font-medium">{asset.name}</span>
+                  <td className="p-4 flex items-center gap-3 max-w-[150px] lg:max-w-[250px]">
+                    <FileText className="text-cyan-400 shrink-0" size={20} />
+                    <span className="font-medium truncate block w-full" title={asset.name}>{asset.name}</span>
                   </td>
                   <td className="p-4 text-sm font-mono text-gray-500">{asset.hash}</td>
                   <td className="p-4 text-sm text-gray-400">{asset.date}</td>
