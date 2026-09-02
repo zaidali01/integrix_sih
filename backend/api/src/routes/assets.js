@@ -229,20 +229,16 @@ router.post('/revoke', mockAuth, async (req, res) => {
     const { userId, assetId } = req.body;
     if (!userId || !assetId) return res.status(400).json({ error: "Missing parameters" });
 
-    // Enforce strictly Admin (Role 1)
-    try {
-        const adminBalance = await roleToken.balanceOf(req.user.address, 1);
-        if (adminBalance.toString() === "0") {
-             return res.status(403).json({ error: "UNAUTHORIZED_ROLE: Only Admins can revoke access badges." });
-        }
-    } catch (err) {
-        return res.status(500).json({ error: "Failed to verify admin role." });
-    }
-
     // Ensure db is loaded
     if (!isDbLoaded) {
         await loadDatabaseFromS3();
         isDbLoaded = true;
+    }
+
+    // Enforce strictly Admin (Role 1) via L2 State
+    const isAdmin = userRoles[req.user.address.toLowerCase()] === "1";
+    if (!isAdmin) {
+         return res.status(403).json({ error: "SECURITY ALERT: Only Admins can revoke access badges. This incident has been logged." });
     }
 
     revokedAccess.push({ userId, assetId });
@@ -254,20 +250,19 @@ router.post('/revoke', mockAuth, async (req, res) => {
 // Admin Route to mock role assignment
 router.post('/assign-role', mockAuth, async (req, res) => {
     const { targetAddress, roleId } = req.body;
-    
-    // For demo purposes, we will bypass the Admin check here so you can bootstrap your first roles
-    // In production, this would be uncommented:
-    /*
-    const isAdmin = userRoles[req.user.address.toLowerCase()] === "1";
-    if (!isAdmin) {
-         return res.status(403).json({ error: "UNAUTHORIZED_ROLE: Only Admins can assign roles." });
-    }
-    */
 
     // Ensure db is loaded
     if (!isDbLoaded) {
         await loadDatabaseFromS3();
         isDbLoaded = true;
+    }
+    
+    const isAdmin = userRoles[req.user.address.toLowerCase()] === "1";
+    const anyAdminsExist = Object.values(userRoles).includes("1");
+    
+    // Enforce strictly Admin (Role 1) via L2 State, but allow the very first admin to bootstrap
+    if (!isAdmin && anyAdminsExist) {
+         return res.status(403).json({ error: "SECURITY ALERT: Only Admins can assign roles. Your unauthorized attempt has been logged." });
     }
 
     userRoles[targetAddress.toLowerCase()] = String(roleId);
