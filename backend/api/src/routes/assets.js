@@ -9,8 +9,8 @@ const router = express.Router();
 const upload = multer({ dest: 'storage/' });
 
 const AES_ALGO = 'aes-256-cbc';
-const AES_KEY = crypto.randomBytes(32); // In production, this should be a stable Vault key
-const AES_IV = crypto.randomBytes(16);
+const AES_KEY = crypto.createHash('sha256').update(process.env.JWT_SECRET || 'hackathon_key').digest();
+const AES_IV = crypto.createHash('md5').update(process.env.JWT_SECRET || 'hackathon_iv').digest();
 
 // Middleware to mock JWT extraction (for demo)
 const mockAuth = (req, res, next) => {
