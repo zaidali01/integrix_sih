@@ -3,10 +3,7 @@ import { UploadCloud, FileText, Lock, FileKey } from 'lucide-react';
 
 export default function AssetVault() {
   const [uploading, setUploading] = useState(false);
-  const [assets, setAssets] = useState([
-    { id: 1, name: "Q3_Financial_Report.pdf", hash: "0x8f2a...391c", date: "2026-09-01" },
-    { id: 2, name: "Employee_Database.csv", hash: "0x1a9b...722f", date: "2026-09-02" },
-  ]);
+  const [assets, setAssets] = useState([]);
 
   const fileInputRef = React.useRef(null);
 
