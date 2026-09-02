@@ -72,7 +72,8 @@ router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
         const newAsset = { 
             id: uploadedAssets.length + 1, 
             name: req.file.originalname, 
-            hash: "0x" + hash.slice(0, 8) + "..." + hash.slice(-4), 
+            hash: "0x" + hash.slice(0, 8) + "..." + hash.slice(-4),
+            fullHash: hash,
             date: new Date().toISOString().split('T')[0] 
         };
         uploadedAssets.unshift(newAsset);
@@ -123,9 +124,38 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
             return res.status(403).json({ status: "denied", reason: mlData.reason || "ANOMALY_SCORE_HIGH" });
         }
 
-        // 3. Decrypt and serve
-        // Logic to decrypt and serve file here...
-        res.json({ status: "granted", message: "Access granted! File content would be served here." });
+        // 3. Find asset, Decrypt and serve
+        const targetAsset = uploadedAssets.find(a => a.id == assetId);
+        if (!targetAsset || !targetAsset.fullHash) {
+            return res.status(404).json({ status: "denied", reason: "Asset not found in memory" });
+        }
+
+        // Initialize MinIO Client
+        const Minio = require('minio');
+        const minioClient = new Minio.Client({
+            endPoint: process.env.MINIO_ENDPOINT || 'localhost',
+            port: parseInt(process.env.MINIO_PORT || '9000'),
+            useSSL: process.env.MINIO_USE_SSL === 'true',
+            accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+            secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'
+        });
+        const BUCKET_NAME = process.env.MINIO_BUCKET || 'arguschain-vault';
+
+        const dataStream = await minioClient.getObject(BUCKET_NAME, `${targetAsset.fullHash}.enc`);
+        let encryptedChunks = [];
+        for await (const chunk of dataStream) {
+            encryptedChunks.push(chunk);
+        }
+        const encryptedBuffer = Buffer.concat(encryptedChunks);
+
+        const decipher = crypto.createDecipheriv(AES_ALGO, AES_KEY, AES_IV);
+        const decryptedBuffer = Buffer.concat([decipher.update(encryptedBuffer), decipher.final()]);
+
+        res.json({ 
+            status: "granted", 
+            message: "Access granted! Downloading file...", 
+            fileBase64: decryptedBuffer.toString('base64') 
+        });
 
     } catch (error) {
         console.error("UEBA Error:", error);

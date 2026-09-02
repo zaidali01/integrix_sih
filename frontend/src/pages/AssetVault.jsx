@@ -92,6 +92,14 @@ export default function AssetVault() {
                           const result = await response.json();
                           if (result.status === "granted") {
                             alert(`✅ ACCESS GRANTED\n\nUEBA ML Check Passed.\nMessage: ${result.message}`);
+                            if (result.fileBase64) {
+                              const link = document.createElement("a");
+                              link.href = `data:application/octet-stream;base64,${result.fileBase64}`;
+                              link.download = asset.name;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }
                           } else {
                             alert(`❌ ACCESS DENIED\n\nSecurity Protocol Triggered.\nReason: ${result.reason}`);
                           }
