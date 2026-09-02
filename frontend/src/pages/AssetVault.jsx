@@ -28,10 +28,17 @@ export default function AssetVault() {
     formData.append('file', file);
 
     try {
+      const userAddress = localStorage.getItem('walletAddress');
+      if (!userAddress) {
+        alert("Please connect your wallet on the Identity page first!");
+        setUploading(false);
+        return;
+      }
+
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const response = await fetch(`${API_URL}/assets/upload`, {
         method: 'POST',
-        headers: { 'x-user-address': '0xHackathonDemoAddress123' },
+        headers: { 'x-user-address': userAddress },
         body: formData,
       });
       
@@ -85,9 +92,15 @@ export default function AssetVault() {
                       onClick={async () => {
                         try {
                           alert(`Initiating Zero-Trust evaluation for ${asset.name}...`);
+                          const userAddress = localStorage.getItem('walletAddress');
+                          if (!userAddress) {
+                            alert("Please connect your wallet first!");
+                            return;
+                          }
+
                           const response = await fetch(`${API_URL}/assets/${asset.id}/access-request`, {
                             method: 'POST',
-                            headers: { 'x-user-address': '0xHackathonDemoAddress123' }
+                            headers: { 'x-user-address': userAddress }
                           });
                           const result = await response.json();
                           if (result.status === "granted") {

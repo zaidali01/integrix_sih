@@ -7,22 +7,28 @@ export default function IdentityOnboarding() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('idle'); // idle, signed, minted
 
+  React.useEffect(() => {
+    const saved = localStorage.getItem('walletAddress');
+    if (saved) {
+      setAddress(saved);
+      setStatus('minted');
+    }
+  }, []);
+
   const handleConnect = async () => {
     setLoading(true);
     try {
-      // Simulate wallet connection and signature
       if (window.ethereum) {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const userAddress = await signer.getAddress();
         setAddress(userAddress);
         
-        // Mock Challenge signing
         setTimeout(() => {
           setStatus('signed');
-          // Mock Minting
           setTimeout(() => {
             setStatus('minted');
+            localStorage.setItem('walletAddress', userAddress);
             setLoading(false);
           }, 1500);
         }, 1500);
