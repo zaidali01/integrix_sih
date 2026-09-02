@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const { assetNFT, accessBadge } = require('../utils/blockchain');
+const { assetNFT, accessBadge, roleToken } = require('../utils/blockchain');
 
 const router = express.Router();
 const upload = multer({ dest: 'storage/' });
@@ -79,6 +79,23 @@ router.get('/', async (req, res) => {
 
 router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const userAddress = req.user.address;
+
+    // 1. Enforce Role-Based Access Control Off-Chain
+    try {
+        const adminBalance = await roleToken.balanceOf(userAddress, 1);
+        const managerBalance = await roleToken.balanceOf(userAddress, 2);
+        
+        if (adminBalance.toString() === "0" && managerBalance.toString() === "0") {
+             fs.unlinkSync(req.file.path); // clean up the temp file
+             return res.status(403).json({ error: "UNAUTHORIZED_ROLE: Only Admins and Managers can upload assets." });
+        }
+    } catch (err) {
+        console.error("Blockchain role check failed:", err);
+        fs.unlinkSync(req.file.path);
+        return res.status(500).json({ error: "Failed to verify user roles on the blockchain." });
+    }
 
     // Ensure db is loaded
     if (!isDbLoaded) {
