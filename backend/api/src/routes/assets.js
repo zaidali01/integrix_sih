@@ -119,7 +119,8 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
         res.json({ status: "granted", message: "Access granted! File content would be served here." });
 
     } catch (error) {
-        res.status(500).json({ error: "Internal Server Error" });
+        console.error("UEBA Error:", error);
+        res.status(500).json({ status: "denied", reason: "Internal Server Error: " + error.message });
     }
 });
 
