@@ -31,9 +31,30 @@ router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
     const cipher = crypto.createCipheriv(AES_ALGO, AES_KEY, AES_IV);
     const encrypted = Buffer.concat([cipher.update(fileBuffer), cipher.final()]);
     
-    const encryptedPath = path.join(__dirname, '../../storage', `${hash}.enc`);
-    fs.writeFileSync(encryptedPath, encrypted);
-    fs.unlinkSync(filePath); // delete temp file
+    // Initialize MinIO Client (Configure these via .env for production)
+    const Minio = require('minio');
+    const minioClient = new Minio.Client({
+        endPoint: process.env.MINIO_ENDPOINT || 'localhost',
+        port: parseInt(process.env.MINIO_PORT || '9000'),
+        useSSL: process.env.MINIO_USE_SSL === 'true',
+        accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+        secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'
+    });
+    const BUCKET_NAME = 'arguschain-vault';
+
+    try {
+        // Ensure bucket exists (in production, do this at startup)
+        const exists = await minioClient.bucketExists(BUCKET_NAME).catch(()=>false);
+        if (!exists) {
+            await minioClient.makeBucket(BUCKET_NAME, 'us-east-1').catch(console.error);
+        }
+        // Upload encrypted buffer to MinIO
+        await minioClient.putObject(BUCKET_NAME, `${hash}.enc`, encrypted);
+        fs.unlinkSync(filePath); // delete temp local file
+    } catch (storageErr) {
+        console.error("Storage Error:", storageErr);
+        return res.status(500).json({ error: "Failed to store encrypted asset in MinIO" });
+    }
 
     // 3. Mint Asset NFT on-chain
     try {
