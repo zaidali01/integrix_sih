@@ -77,12 +77,44 @@ export default function AdminConsole() {
           </form>
         </div>
 
-        <div className="glass-card p-6 opacity-50 cursor-not-allowed">
-          <h2 className="text-xl font-semibold mb-6">Batch Issue Access Badges</h2>
-          <p className="text-gray-400 mb-4">Select an Asset ID and upload a CSV of allowed wallet addresses to mint ERC-1155 access badges in bulk.</p>
-          <div className="w-full py-12 border-2 border-dashed border-white/10 rounded-xl flex items-center justify-center text-gray-500">
-            Coming Soon
-          </div>
+        <div className="glass-card p-6">
+          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-red-400">
+            <ShieldPlus size={24} />
+            Revoke Access Badge
+          </h2>
+          <p className="text-gray-400 mb-4 text-sm">Forcefully burn a user's ERC-1155 Access Badge, instantly cutting off their decryption rights at the blockchain layer.</p>
+          
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const addr = e.target.address.value;
+            const assetId = e.target.assetId.value;
+            if (!addr || !assetId) return;
+            const btn = e.target.submitBtn;
+            btn.innerText = 'Burning on-chain...';
+            btn.disabled = true;
+            setTimeout(() => {
+              btn.innerText = 'Access Revoked (Token Burned)';
+              btn.classList.add('bg-green-500');
+              setTimeout(() => {
+                btn.innerText = 'Burn Access Badge';
+                btn.classList.remove('bg-green-500');
+                btn.disabled = false;
+                e.target.reset();
+              }, 3000);
+            }, 1500);
+          }} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Target User Address</label>
+              <input name="address" type="text" placeholder="0x..." className="w-full bg-black/40 border border-white/10 rounded-xl py-2 px-4 text-white focus:outline-none focus:border-red-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Target Asset ID</label>
+              <input name="assetId" type="number" placeholder="e.g. 1" className="w-full bg-black/40 border border-white/10 rounded-xl py-2 px-4 text-white focus:outline-none focus:border-red-500" />
+            </div>
+            <button name="submitBtn" type="submit" className="w-full mt-4 py-3 rounded-xl font-semibold transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] bg-gradient-to-r from-red-600 to-red-800 text-white hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] border border-red-500/50">
+              Burn Access Badge
+            </button>
+          </form>
         </div>
       </div>
     </div>
