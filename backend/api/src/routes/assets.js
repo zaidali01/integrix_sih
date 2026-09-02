@@ -18,6 +18,13 @@ const mockAuth = (req, res, next) => {
     next();
 };
 
+// Hackathon fast-path: In-memory array so uploads survive page refreshes
+let uploadedAssets = [];
+
+router.get('/', (req, res) => {
+    res.json(uploadedAssets);
+});
+
 router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
@@ -40,7 +47,7 @@ router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
         accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
         secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'
     });
-    const BUCKET_NAME = 'arguschain-vault';
+    const BUCKET_NAME = process.env.MINIO_BUCKET || 'arguschain-vault';
 
     try {
         // Ensure bucket exists (in production, do this at startup)
@@ -61,7 +68,16 @@ router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
         // Note: For hackathon, assume transaction succeeds
         // const tx = await assetNFT.mintAsset(req.user.address, hash);
         // await tx.wait();
-        res.json({ status: "success", message: "File uploaded and encrypted", hash });
+        
+        const newAsset = { 
+            id: uploadedAssets.length + 1, 
+            name: req.file.originalname, 
+            hash: "0x" + hash.slice(0, 8) + "..." + hash.slice(-4), 
+            date: new Date().toISOString().split('T')[0] 
+        };
+        uploadedAssets.unshift(newAsset);
+
+        res.json({ status: "success", message: "File uploaded and encrypted", hash, asset: newAsset });
     } catch (err) {
         res.status(500).json({ error: "Blockchain transaction failed" });
     }

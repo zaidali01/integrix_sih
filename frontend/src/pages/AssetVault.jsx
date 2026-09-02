@@ -6,6 +6,14 @@ export default function AssetVault() {
   const [assets, setAssets] = useState([]);
 
   const fileInputRef = React.useRef(null);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+  React.useEffect(() => {
+    fetch(`${API_URL}/assets`)
+      .then(res => res.json())
+      .then(data => setAssets(data))
+      .catch(err => console.error("Failed to load assets:", err));
+  }, [API_URL]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -29,11 +37,8 @@ export default function AssetVault() {
       
       const data = await response.json();
       
-      if (data.hash) {
-        setAssets([
-          { id: assets.length + 1, name: file.name, hash: "0x" + data.hash.slice(0, 8) + "..." + data.hash.slice(-4), date: new Date().toISOString().split('T')[0] },
-          ...assets
-        ]);
+      if (data.asset) {
+        setAssets(prev => [data.asset, ...prev]);
       } else {
         alert(data.error || "Upload failed");
       }
