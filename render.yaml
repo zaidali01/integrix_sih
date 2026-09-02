@@ -3,6 +3,7 @@ services:
   - type: web
     name: arguschain-api
     env: node
+    plan: free
     rootDir: backend/api
     buildCommand: npm install
     startCommand: node src/server.js
@@ -16,6 +17,7 @@ services:
   - type: web
     name: arguschain-ueba
     env: python
+    plan: free
     rootDir: backend/ueba-service
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
