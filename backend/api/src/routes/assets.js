@@ -95,7 +95,9 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
         // }
 
         // 2. Query UEBA ML Service for anomaly score
-        const UEBA_URL = process.env.UEBA_URL || 'http://127.0.0.1:8000';
+        let UEBA_URL = process.env.UEBA_URL || 'http://127.0.0.1:8000';
+        if (UEBA_URL.endsWith('/')) UEBA_URL = UEBA_URL.slice(0, -1);
+        
         const mlResponse = await fetch(`${UEBA_URL}/score`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
