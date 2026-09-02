@@ -81,7 +81,26 @@ export default function AssetVault() {
                   <td className="p-4 text-sm font-mono text-gray-500">{asset.hash}</td>
                   <td className="p-4 text-sm text-gray-400">{asset.date}</td>
                   <td className="p-4">
-                    <button className="px-4 py-1.5 rounded-lg bg-white/10 text-sm hover:bg-cyan-500 hover:text-white transition-all flex items-center gap-2">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          alert(`Initiating Zero-Trust evaluation for ${asset.name}...`);
+                          const response = await fetch(`${API_URL}/assets/${asset.id}/access-request`, {
+                            method: 'POST',
+                            headers: { 'x-user-address': '0xHackathonDemoAddress123' }
+                          });
+                          const result = await response.json();
+                          if (result.status === "granted") {
+                            alert(`✅ ACCESS GRANTED\n\nUEBA ML Check Passed.\nMessage: ${result.message}`);
+                          } else {
+                            alert(`❌ ACCESS DENIED\n\nSecurity Protocol Triggered.\nReason: ${result.reason}`);
+                          }
+                        } catch(err) {
+                          alert("Error contacting security protocol.");
+                        }
+                      }}
+                      className="px-4 py-1.5 rounded-lg bg-white/10 text-sm hover:bg-cyan-500 hover:text-white transition-all flex items-center gap-2"
+                    >
                       <Lock size={14} /> Request Access
                     </button>
                   </td>
