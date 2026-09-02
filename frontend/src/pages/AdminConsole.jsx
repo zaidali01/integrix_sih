@@ -84,7 +84,7 @@ export default function AdminConsole() {
           </h2>
           <p className="text-gray-400 mb-4 text-sm">Forcefully burn a user's ERC-1155 Access Badge, instantly cutting off their decryption rights at the blockchain layer.</p>
           
-          <form onSubmit={(e) => {
+          <form onSubmit={async (e) => {
             e.preventDefault();
             const addr = e.target.address.value;
             const assetId = e.target.assetId.value;
@@ -92,7 +92,15 @@ export default function AdminConsole() {
             const btn = e.target.submitBtn;
             btn.innerText = 'Burning on-chain...';
             btn.disabled = true;
-            setTimeout(() => {
+
+            try {
+              const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+              await fetch(`${API_URL}/assets/revoke`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: addr, assetId })
+              });
+              
               btn.innerText = 'Access Revoked (Token Burned)';
               btn.classList.add('bg-green-500');
               setTimeout(() => {
@@ -101,7 +109,11 @@ export default function AdminConsole() {
                 btn.disabled = false;
                 e.target.reset();
               }, 3000);
-            }, 1500);
+            } catch (err) {
+              alert("Error burning token");
+              btn.innerText = 'Burn Access Badge';
+              btn.disabled = false;
+            }
           }} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Target User Address</label>

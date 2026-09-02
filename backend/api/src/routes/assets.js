@@ -29,13 +29,15 @@ const minioClient = new Minio.Client({
 });
 const BUCKET_NAME = process.env.MINIO_BUCKET || 'arguschain-vault';
 
-// Hackathon fast-path: In-memory array backed by S3 JSON file
+// Hackathon fast-path: In-memory database backed by S3 JSON file
 let uploadedAssets = [];
+let revokedAccess = [];
 
 // Helper to sync metadata to S3
 async function syncDatabaseToS3() {
     try {
-        const buffer = Buffer.from(JSON.stringify(uploadedAssets));
+        const dbState = { uploadedAssets, revokedAccess };
+        const buffer = Buffer.from(JSON.stringify(dbState));
         await minioClient.putObject(BUCKET_NAME, 'argus-metadata.json', buffer);
     } catch (e) {
         console.error("Failed to sync metadata to S3:", e);
@@ -50,7 +52,15 @@ async function loadDatabaseFromS3() {
         for await (const chunk of dataStream) {
             chunks.push(chunk);
         }
-        uploadedAssets = JSON.parse(Buffer.concat(chunks).toString());
+        const parsed = JSON.parse(Buffer.concat(chunks).toString());
+        
+        // Backward compatibility if it was just an array before
+        if (Array.isArray(parsed)) {
+            uploadedAssets = parsed;
+        } else {
+            uploadedAssets = parsed.uploadedAssets || [];
+            revokedAccess = parsed.revokedAccess || [];
+        }
     } catch (e) {
         console.log("No existing metadata found in S3, starting fresh.");
     }
@@ -128,10 +138,11 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
 
     try {
         // 1. Check Access Badge Balance
-        // const balance = await accessBadge.balanceOf(userAddress, assetId);
-        // if (balance.toString() === "0") {
-        //    return res.status(403).json({ status: "denied", reason: "NO_ASSET_BADGE" });
-        // }
+        // For the hackathon demo, we simulate the on-chain revocation checking the synchronized S3 state
+        const isRevoked = revokedAccess.some(r => r.userId.toLowerCase() === userAddress.toLowerCase() && r.assetId == assetId);
+        if (isRevoked) {
+           return res.status(403).json({ status: "denied", reason: "ACCESS_TOKEN_BURNED" });
+        }
 
         // 2. Query UEBA ML Service for anomaly score
         let UEBA_URL = process.env.UEBA_URL || 'http://127.0.0.1:8000';
@@ -199,6 +210,23 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
         console.error("UEBA Error:", error);
         res.status(500).json({ status: "denied", reason: "Internal Server Error: " + error.message });
     }
+});
+
+// Admin Route to mock token burning
+router.post('/revoke', async (req, res) => {
+    const { userId, assetId } = req.body;
+    if (!userId || !assetId) return res.status(400).json({ error: "Missing parameters" });
+
+    // Ensure db is loaded
+    if (!isDbLoaded) {
+        await loadDatabaseFromS3();
+        isDbLoaded = true;
+    }
+
+    revokedAccess.push({ userId, assetId });
+    await syncDatabaseToS3(); // Save to MinIO
+    
+    res.json({ status: "success", message: "Token burned on-chain" });
 });
 
 module.exports = router;
