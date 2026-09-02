@@ -230,9 +230,19 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
 });
 
 // Admin Route to mock token burning
-router.post('/revoke', async (req, res) => {
+router.post('/revoke', mockAuth, async (req, res) => {
     const { userId, assetId } = req.body;
     if (!userId || !assetId) return res.status(400).json({ error: "Missing parameters" });
+
+    // Enforce strictly Admin (Role 1)
+    try {
+        const adminBalance = await roleToken.balanceOf(req.user.address, 1);
+        if (adminBalance.toString() === "0") {
+             return res.status(403).json({ error: "UNAUTHORIZED_ROLE: Only Admins can revoke access badges." });
+        }
+    } catch (err) {
+        return res.status(500).json({ error: "Failed to verify admin role." });
+    }
 
     // Ensure db is loaded
     if (!isDbLoaded) {
@@ -244,6 +254,24 @@ router.post('/revoke', async (req, res) => {
     await syncDatabaseToS3(); // Save to MinIO
     
     res.json({ status: "success", message: "Token burned on-chain" });
+});
+
+// Admin Route to mock role assignment
+router.post('/assign-role', mockAuth, async (req, res) => {
+    const { targetAddress, roleId } = req.body;
+    
+    // Enforce strictly Admin (Role 1)
+    try {
+        const adminBalance = await roleToken.balanceOf(req.user.address, 1);
+        if (adminBalance.toString() === "0") {
+             return res.status(403).json({ error: "UNAUTHORIZED_ROLE: Only Admins can assign roles." });
+        }
+    } catch (err) {
+        return res.status(500).json({ error: "Failed to verify admin role." });
+    }
+
+    // Mock successful transaction
+    res.json({ status: "success", message: "Role assigned on-chain" });
 });
 
 module.exports = router;

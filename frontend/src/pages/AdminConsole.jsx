@@ -6,16 +6,40 @@ export default function AdminConsole() {
   const [selectedRole, setSelectedRole] = useState('4');
   const [status, setStatus] = useState(null);
 
-  const handleAssign = (e) => {
+  const handleAssign = async (e) => {
     e.preventDefault();
     if (!address) return;
+    
+    const userAddress = localStorage.getItem('walletAddress');
+    if (!userAddress) {
+      alert("Please connect your wallet first!");
+      return;
+    }
+
     setStatus('assigning');
     
-    // Mock API call to backend /admin/roles/assign
-    setTimeout(() => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${API_URL}/assets/assign-role`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-address': userAddress
+        },
+        body: JSON.stringify({ targetAddress: address, roleId: selectedRole })
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to assign role");
+      }
+
       setStatus('success');
       setTimeout(() => setStatus(null), 3000);
-    }, 1000);
+    } catch (err) {
+      alert(err.message);
+      setStatus(null);
+    }
   };
 
   return (
@@ -94,12 +118,28 @@ export default function AdminConsole() {
             btn.disabled = true;
 
             try {
+              const userAddress = localStorage.getItem('walletAddress');
+              if (!userAddress) {
+                alert("Please connect your wallet first!");
+                btn.innerText = 'Burn Access Badge';
+                btn.disabled = false;
+                return;
+              }
+
               const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-              await fetch(`${API_URL}/assets/revoke`, {
+              const response = await fetch(`${API_URL}/assets/revoke`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'x-user-address': userAddress
+                },
                 body: JSON.stringify({ userId: addr, assetId })
               });
+              
+              if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Failed to burn token");
+              }
               
               btn.innerText = 'Access Revoked (Token Burned)';
               btn.classList.add('bg-green-500');
