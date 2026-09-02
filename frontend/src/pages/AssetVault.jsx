@@ -67,9 +67,10 @@ export default function AssetVault() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 glass-card overflow-hidden">
-          <table className="w-full text-left border-collapse">
+      <div className="flex flex-col gap-8">
+        {/* Table Section */}
+        <div className="glass-card w-full overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="border-b border-white/5 bg-white/5">
                 <th className="p-4 font-medium text-gray-400">File Name</th>
@@ -81,7 +82,7 @@ export default function AssetVault() {
             <tbody>
               {assets.map(asset => (
                 <tr key={asset.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
-                  <td className="p-4 flex items-center gap-3 max-w-[150px] lg:max-w-[250px]">
+                  <td className="p-4 flex items-center gap-3 max-w-[200px] lg:max-w-[300px]">
                     <FileText className="text-cyan-400 shrink-0" size={20} />
                     <span className="font-medium truncate block w-full" title={asset.name}>{asset.name}</span>
                   </td>
@@ -120,7 +121,7 @@ export default function AssetVault() {
                           alert("Error contacting security protocol.");
                         }
                       }}
-                      className="px-4 py-1.5 rounded-lg bg-white/10 text-sm hover:bg-cyan-500 hover:text-white transition-all flex items-center gap-2"
+                      className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-cyan-500 hover:text-white transition-all flex items-center gap-2"
                     >
                       <Lock size={14} /> Request Access
                     </button>
@@ -131,15 +132,16 @@ export default function AssetVault() {
           </table>
         </div>
 
-        <div className="glass-card p-6 flex flex-col">
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+        {/* Upload Section */}
+        <div className="glass-card p-8 flex flex-col w-full max-w-2xl mx-auto mt-4">
+          <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2 justify-center">
             <UploadCloud className="text-purple-400" />
             Upload New Asset
           </h2>
           
           <div 
             onClick={handleUploadClick}
-            className="flex-1 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center p-8 text-center bg-black/20 hover:bg-white/5 transition-colors cursor-pointer group"
+            className="w-full border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center p-12 text-center bg-black/20 hover:bg-white/5 transition-colors cursor-pointer group"
           >
             <input 
               type="file" 
@@ -147,13 +149,13 @@ export default function AssetVault() {
               onChange={handleFileChange} 
               className="hidden" 
             />
-            <FileKey size={48} className="text-gray-500 group-hover:text-cyan-400 transition-colors mb-4" />
-            <p className="text-gray-300 font-medium mb-1">Drag & Drop or Click</p>
-            <p className="text-sm text-gray-500 mb-6">Files are AES-256 encrypted locally before the hash is minted on-chain.</p>
+            <FileKey size={56} className="text-gray-500 group-hover:text-cyan-400 transition-colors mb-4" />
+            <p className="text-gray-300 font-medium mb-2 text-lg">Drag & Drop or Click to Browse</p>
+            <p className="text-sm text-gray-500 mb-8 max-w-sm">Files are securely AES-256 encrypted in memory before the hash is minted on-chain to the Sepolia testnet.</p>
             
             <button 
               disabled={uploading}
-              className="glow-button w-full"
+              className="glow-button w-full max-w-xs"
             >
               {uploading ? 'Encrypting & Minting...' : 'Select File'}
             </button>
