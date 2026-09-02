@@ -110,6 +110,13 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
                 result: 'ACCESS_REQUEST'
             })
         });
+
+        // Handle Render Free Tier "Spinning Up" HTML interception
+        const contentType = mlResponse.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+            throw new Error("Render is currently waking up the ML service from sleep mode. Please wait 60 seconds and click again!");
+        }
+
         const mlData = await mlResponse.json();
 
         if (mlData.anomaly_score > 0) {
