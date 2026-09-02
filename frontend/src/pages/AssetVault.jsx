@@ -20,7 +20,8 @@ export default function AssetVault() {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:3000/assets/upload', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${API_URL}/assets/upload`, {
         method: 'POST',
         headers: { 'x-user-address': '0xHackathonDemoAddress123' },
         body: formData,
