@@ -8,11 +8,37 @@ export default function IdentityOnboarding() {
   const [status, setStatus] = useState('idle'); // idle, signed, minted
 
   React.useEffect(() => {
-    const saved = localStorage.getItem('walletAddress');
-    if (saved) {
-      setAddress(saved);
-      setStatus('minted');
-    }
+    const checkConnection = async () => {
+      if (window.ethereum) {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length > 0) {
+          const saved = localStorage.getItem('walletAddress');
+          if (saved && saved.toLowerCase() === accounts[0].toLowerCase()) {
+            setAddress(saved);
+            setStatus('minted');
+          }
+        } else {
+          // User disconnected via MetaMask
+          localStorage.removeItem('walletAddress');
+          setAddress('');
+          setStatus('idle');
+        }
+
+        // Listen for real-time disconnects or account switches
+        window.ethereum.on('accountsChanged', (newAccounts) => {
+          if (newAccounts.length === 0) {
+            localStorage.removeItem('walletAddress');
+            setAddress('');
+            setStatus('idle');
+          } else {
+            localStorage.setItem('walletAddress', newAccounts[0]);
+            setAddress(newAccounts[0]);
+            setStatus('minted');
+          }
+        });
+      }
+    };
+    checkConnection();
   }, []);
 
   const handleConnect = async () => {
