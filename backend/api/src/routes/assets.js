@@ -18,15 +18,63 @@ const mockAuth = (req, res, next) => {
     next();
 };
 
-// Hackathon fast-path: In-memory array so uploads survive page refreshes
+// Initialize MinIO Client globally
+const Minio = require('minio');
+const minioClient = new Minio.Client({
+    endPoint: process.env.MINIO_ENDPOINT || 'localhost',
+    port: parseInt(process.env.MINIO_PORT || '9000'),
+    useSSL: process.env.MINIO_USE_SSL === 'true',
+    accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+    secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'
+});
+const BUCKET_NAME = process.env.MINIO_BUCKET || 'arguschain-vault';
+
+// Hackathon fast-path: In-memory array backed by S3 JSON file
 let uploadedAssets = [];
 
-router.get('/', (req, res) => {
+// Helper to sync metadata to S3
+async function syncDatabaseToS3() {
+    try {
+        const buffer = Buffer.from(JSON.stringify(uploadedAssets));
+        await minioClient.putObject(BUCKET_NAME, 'argus-metadata.json', buffer);
+    } catch (e) {
+        console.error("Failed to sync metadata to S3:", e);
+    }
+}
+
+// Helper to load metadata from S3
+async function loadDatabaseFromS3() {
+    try {
+        const dataStream = await minioClient.getObject(BUCKET_NAME, 'argus-metadata.json');
+        let chunks = [];
+        for await (const chunk of dataStream) {
+            chunks.push(chunk);
+        }
+        uploadedAssets = JSON.parse(Buffer.concat(chunks).toString());
+    } catch (e) {
+        console.log("No existing metadata found in S3, starting fresh.");
+    }
+}
+
+// Load it once when the route is first hit
+let isDbLoaded = false;
+
+router.get('/', async (req, res) => {
+    if (!isDbLoaded) {
+        await loadDatabaseFromS3();
+        isDbLoaded = true;
+    }
     res.json(uploadedAssets);
 });
 
 router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    // Ensure db is loaded
+    if (!isDbLoaded) {
+        await loadDatabaseFromS3();
+        isDbLoaded = true;
+    }
 
     const filePath = req.file.path;
     const fileBuffer = fs.readFileSync(filePath);
@@ -38,19 +86,8 @@ router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
     const cipher = crypto.createCipheriv(AES_ALGO, AES_KEY, AES_IV);
     const encrypted = Buffer.concat([cipher.update(fileBuffer), cipher.final()]);
     
-    // Initialize MinIO Client (Configure these via .env for production)
-    const Minio = require('minio');
-    const minioClient = new Minio.Client({
-        endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-        port: parseInt(process.env.MINIO_PORT || '9000'),
-        useSSL: process.env.MINIO_USE_SSL === 'true',
-        accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-        secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'
-    });
-    const BUCKET_NAME = process.env.MINIO_BUCKET || 'arguschain-vault';
-
     try {
-        // Ensure bucket exists (in production, do this at startup)
+        // Ensure bucket exists
         const exists = await minioClient.bucketExists(BUCKET_NAME).catch(()=>false);
         if (!exists) {
             await minioClient.makeBucket(BUCKET_NAME, 'us-east-1').catch(console.error);
@@ -77,6 +114,7 @@ router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
             date: new Date().toISOString().split('T')[0] 
         };
         uploadedAssets.unshift(newAsset);
+        await syncDatabaseToS3(); // Save to MinIO so it survives restarts!
 
         res.json({ status: "success", message: "File uploaded and encrypted", hash, asset: newAsset });
     } catch (err) {
