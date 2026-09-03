@@ -20,7 +20,7 @@ const RoleTokenABI = [
     "event RoleGranted(address indexed account, uint256 indexed roleId)"
 ];
 const AssetNFTABI = [
-    "function mintAsset(address to, string memory assetHash) public returns (uint256)",
+    "function mintAsset(address to, string memory fileHash, string memory name) public returns (uint256)",
     "function getAssetHash(uint256 tokenId) public view returns (string memory)",
     "event AssetMinted(uint256 indexed tokenId, address indexed uploader, string fileHash, string name)"
 ];

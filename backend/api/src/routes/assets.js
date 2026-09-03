@@ -124,7 +124,7 @@ router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
 
     // 3. Mint Asset NFT on-chain
     try {
-        const tx = await assetNFT.mintAsset(req.user.address, hash);
+        const tx = await assetNFT.mintAsset(req.user.address, hash, req.file.originalname);
         await tx.wait();
         
         const newAsset = { 
@@ -139,7 +139,8 @@ router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
 
         res.json({ status: "success", message: "File uploaded and encrypted", hash, asset: newAsset });
     } catch (err) {
-        res.status(500).json({ error: "Blockchain transaction failed" });
+        console.error("Blockchain error during mint:", err);
+        res.status(500).json({ error: "Blockchain transaction failed: " + err.message });
     }
 });
 
@@ -271,7 +272,7 @@ router.post('/revoke', mockAuth, async (req, res) => {
         await tx.wait();
     } catch (err) {
         console.error("Blockchain revoke failed", err);
-        return res.status(500).json({ error: "Failed to burn badge on-chain" });
+        return res.status(500).json({ error: "Failed to burn badge on-chain: " + err.message });
     }
 
     revokedAccess.push({ userId, assetId });
@@ -304,7 +305,7 @@ router.post('/assign-role', mockAuth, async (req, res) => {
         await tx.wait();
     } catch (err) {
         console.error("Blockchain role mint failed", err);
-        return res.status(500).json({ error: "Failed to mint role on-chain" });
+        return res.status(500).json({ error: "Failed to mint role on-chain: " + err.message });
     }
 
     userRoles[targetAddress.toLowerCase()] = String(roleId);
