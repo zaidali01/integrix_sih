@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Activity, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Activity, AlertTriangle, ShieldAlert, List, ExternalLink } from 'lucide-react';
 
 const mockData = Array.from({ length: 20 }).map((_, i) => ({
   time: `14:${i.toString().padStart(2, '0')}`,
@@ -9,6 +9,8 @@ const mockData = Array.from({ length: 20 }).map((_, i) => ({
 
 export default function SocCopilot() {
   const [data, setData] = useState(mockData);
+  const [onchainLogs, setOnchainLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
   const [alerts, setAlerts] = useState([
     { id: 1, type: "HONEYPOT_TRIGGERED", user: "0x4a9...b112", time: "14:15:22", desc: "Attempted to read decoy_asset_1" },
     { id: 2, type: "ANOMALY_VOLUME_HIGH", user: "0x9f1...c299", time: "14:10:05", desc: "45 requests in 60s window" },
@@ -29,6 +31,25 @@ export default function SocCopilot() {
       });
     }, 3000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    // Fetch on-chain logs from the backend
+    const fetchLogs = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const res = await fetch(`${API_URL}/assets/onchain-logs`);
+        if (res.ok) {
+          const logs = await res.json();
+          setOnchainLogs(logs);
+        }
+      } catch (err) {
+        console.error("Failed to fetch on-chain logs", err);
+      } finally {
+        setLoadingLogs(false);
+      }
+    };
+    fetchLogs();
   }, []);
 
   return (
@@ -84,7 +105,7 @@ export default function SocCopilot() {
               Active Alerts Feed
             </h2>
           </div>
-          <div className="p-4 flex-1 overflow-y-auto space-y-4">
+          <div className="p-4 flex-1 overflow-y-auto space-y-4 max-h-[400px]">
             {alerts.map(alert => (
               <div key={alert.id} className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 relative">
                 <div className="absolute top-4 right-4 text-xs text-red-300">{alert.time}</div>
@@ -102,6 +123,65 @@ export default function SocCopilot() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* On-Chain Audit Log Section */}
+      <div className="glass-card p-6 mt-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <List className="text-purple-400" />
+            Immutable On-Chain Audit Log (Etherscan/Sepolia)
+          </h2>
+          <span className="text-sm text-gray-400 flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Live Sync
+          </span>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-white/5 bg-white/5">
+                <th className="p-4 font-medium text-gray-400">Event Type</th>
+                <th className="p-4 font-medium text-gray-400">Description</th>
+                <th className="p-4 font-medium text-gray-400">Block</th>
+                <th className="p-4 font-medium text-gray-400 text-right">Etherscan Tx</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingLogs ? (
+                <tr>
+                  <td colSpan="4" className="p-8 text-center text-gray-500">Querying Sepolia network logs...</td>
+                </tr>
+              ) : onchainLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="p-8 text-center text-gray-500">No recent on-chain events found.</td>
+                </tr>
+              ) : (
+                onchainLogs.map(log => (
+                  <tr key={log.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <td className="p-4">
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        {log.type}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-gray-300 font-mono truncate max-w-md" title={log.desc}>{log.desc}</td>
+                    <td className="p-4 text-sm text-gray-400">#{log.blockNumber}</td>
+                    <td className="p-4 text-right">
+                      <a 
+                        href={`https://sepolia.etherscan.io/tx/${log.txHash}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-sm transition-colors"
+                      >
+                        View <ExternalLink size={14} />
+                      </a>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

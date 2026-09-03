@@ -297,4 +297,71 @@ router.post('/assign-role', mockAuth, async (req, res) => {
     res.json({ status: "success", message: "Role assigned via fast L2 state" });
 });
 
+// Fetch on-chain logs for the UI Audit Log
+router.get('/onchain-logs', async (req, res) => {
+    try {
+        const currentBlock = await assetNFT.runner.provider.getBlockNumber();
+        const fromBlock = Math.max(0, currentBlock - 10000); // Last ~33 hours on Ethereum, safe range
+
+        // Fetch logs
+        const [assetLogs, roleLogs, badgeIssuedLogs, badgeRevokedLogs] = await Promise.all([
+            assetNFT.queryFilter(assetNFT.filters.AssetMinted(), fromBlock, "latest"),
+            roleToken.queryFilter(roleToken.filters.RoleGranted(), fromBlock, "latest"),
+            accessBadge.queryFilter(accessBadge.filters.BadgeIssued(), fromBlock, "latest"),
+            accessBadge.queryFilter(accessBadge.filters.BadgeRevoked(), fromBlock, "latest")
+        ]);
+
+        let combinedLogs = [];
+
+        assetLogs.forEach(log => {
+            combinedLogs.push({
+                id: log.transactionHash + log.index,
+                txHash: log.transactionHash,
+                type: 'ASSET_MINTED',
+                desc: `Asset minted by ${log.args[1]} (Hash: ${log.args[2]})`,
+                blockNumber: log.blockNumber
+            });
+        });
+
+        roleLogs.forEach(log => {
+            const roleNames = { 1: "Admin", 2: "Manager", 3: "Auditor", 4: "User" };
+            combinedLogs.push({
+                id: log.transactionHash + log.index,
+                txHash: log.transactionHash,
+                type: 'ROLE_GRANTED',
+                desc: `Role ${roleNames[Number(log.args[1])] || log.args[1]} granted to ${log.args[0]}`,
+                blockNumber: log.blockNumber
+            });
+        });
+
+        badgeIssuedLogs.forEach(log => {
+            combinedLogs.push({
+                id: log.transactionHash + log.index,
+                txHash: log.transactionHash,
+                type: 'BADGE_ISSUED',
+                desc: `Access Badge issued for Asset ID ${log.args[1]} to ${log.args[0]}`,
+                blockNumber: log.blockNumber
+            });
+        });
+
+        badgeRevokedLogs.forEach(log => {
+            combinedLogs.push({
+                id: log.transactionHash + log.index,
+                txHash: log.transactionHash,
+                type: 'BADGE_REVOKED',
+                desc: `Access Badge revoked for Asset ID ${log.args[1]} from ${log.args[0]}`,
+                blockNumber: log.blockNumber
+            });
+        });
+
+        // Sort by block number descending
+        combinedLogs.sort((a, b) => b.blockNumber - a.blockNumber);
+
+        res.json(combinedLogs);
+    } catch (error) {
+        console.error("Error fetching on-chain logs:", error);
+        res.status(500).json({ error: "Failed to fetch logs" });
+    }
+});
+
 module.exports = router;

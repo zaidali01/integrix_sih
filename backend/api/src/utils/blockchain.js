@@ -16,16 +16,20 @@ const ACCESS_BADGE_ADDRESS = process.env.ACCESS_BADGE_ADDRESS || "0x000000000000
 // Simple ABIs for what the backend needs
 const RoleTokenABI = [
     "function mintRole(address account, uint256 id) public",
-    "function balanceOf(address account, uint256 id) public view returns (uint256)"
+    "function balanceOf(address account, uint256 id) public view returns (uint256)",
+    "event RoleGranted(address indexed account, uint256 indexed roleId)"
 ];
 const AssetNFTABI = [
     "function mintAsset(address to, string memory assetHash) public returns (uint256)",
-    "function getAssetHash(uint256 tokenId) public view returns (string memory)"
+    "function getAssetHash(uint256 tokenId) public view returns (string memory)",
+    "event AssetMinted(uint256 indexed tokenId, address indexed uploader, string fileHash, string name)"
 ];
 const AccessBadgeABI = [
     "function issueBadge(address to, uint256 assetId) public",
     "function revokeBadge(address from, uint256 assetId) public",
-    "function balanceOf(address account, uint256 id) public view returns (uint256)"
+    "function balanceOf(address account, uint256 id) public view returns (uint256)",
+    "event BadgeIssued(address indexed to, uint256 indexed assetId)",
+    "event BadgeRevoked(address indexed from, uint256 indexed assetId)"
 ];
 
 const roleToken = new ethers.Contract(ROLE_TOKEN_ADDRESS, RoleTokenABI, wallet);
