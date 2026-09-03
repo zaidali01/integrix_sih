@@ -3,21 +3,81 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    font-family: 'Outfit', sans-serif;
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+                    body {
+                      font-family: 'IBM Plex Sans', sans-serif;
+                      overflow-x: hidden;
+                    }
+          
+                    .grid-bg {
+                      background-color: #F4EFE4;
+                      background-image:
+                        linear-gradient(rgba(28, 26, 22, 0.06) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(28, 26, 22, 0.02) 1px, transparent 1px);
+                      background-size: 48px 48px;
+                    }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: 'Libre Franklin', sans-serif;
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/20;
+  .panel {
+    @apply bg-panel border border-border;
   }
-  
+
+                    .btn-primary {
+                      @apply relative px-5 py-3 font-semibold text-[#1C1A16] bg-accent hover:bg-accent/85 transition-colors duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+                    }
+
+  .btn-secondary {
+    @apply relative px-5 py-3 font-semibold text-paper bg-transparent border border-paper/30 hover:border-paper transition-colors duration-150 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .input-field {
+    @apply w-full bg-ink border border-border py-3 px-4 text-paper placeholder:text-muted focus:outline-none focus:border-accent transition-colors duration-150;
+  }
+
+  .label-text {
+    @apply block text-xs uppercase tracking-wider text-muted mb-2 font-medium;
+  }
+
+  .eyebrow {
+    @apply font-mono text-xs uppercase tracking-[0.2em] text-accent mb-3 block;
+  }
+
+  select.input-field {
+    @apply appearance-none bg-no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%236B6963' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+  }
+
+  .glass-card {
+    @apply panel;
+  }
+
   .glow-button {
-    @apply relative px-6 py-3 font-semibold text-white rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 transition-all duration-300 shadow-[0_0_15px_rgba(6,182,212,0.5)] hover:shadow-[0_0_25px_rgba(6,182,212,0.8)] active:scale-95;
+    @apply btn-primary;
   }
 
   .glow-button-secondary {
-    @apply relative px-6 py-3 font-semibold text-gray-300 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 border border-white/10 active:scale-95;
+    @apply btn-secondary;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
   }
 }
