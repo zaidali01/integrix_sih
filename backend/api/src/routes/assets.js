@@ -149,6 +149,12 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
     const userAddress = req.user.address;
 
     try {
+        // Ensure db is loaded
+        if (!isDbLoaded) {
+            await loadDatabaseFromS3();
+            isDbLoaded = true;
+        }
+
         // 1. Check Access Badge Balance
         // For the hackathon demo, we simulate the on-chain revocation checking the synchronized S3 state
         const isRevoked = revokedAccess.some(r => r.userId.toLowerCase() === userAddress.toLowerCase() && r.assetId == assetId);
@@ -156,11 +162,14 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
            return res.status(403).json({ status: "denied", reason: "ACCESS_TOKEN_BURNED" });
         }
 
+        const role = userRoles[userAddress.toLowerCase()];
+        const isPrivileged = (role === "1" || role === "2" || role === "3");
+
         // 2. Query UEBA ML Service for anomaly score
         let UEBA_URL = process.env.UEBA_URL || 'http://127.0.0.1:8000';
         if (UEBA_URL.endsWith('/')) UEBA_URL = UEBA_URL.slice(0, -1);
         
-        const mlResponse = await fetch(`${UEBA_URL}/score`, {
+        const recordAccess = fetch(`${UEBA_URL}/score`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -173,16 +182,32 @@ router.post('/:id/access-request', mockAuth, async (req, res) => {
             })
         });
 
-        // Handle Render Free Tier "Spinning Up" HTML interception
-        const contentType = mlResponse.headers.get('content-type');
-        if (contentType && contentType.includes('text/html')) {
-            throw new Error("Render is currently waking up the ML service from sleep mode. Please wait 60 seconds and click again!");
-        }
+        if (isPrivileged) {
+            // Fire and forget recording for privileged roles
+            recordAccess.catch(err => console.error("Failed to record privileged access:", err.message));
+        } else {
+            // Regular user: await the response and enforce anomaly score
+            const mlResponse = await recordAccess;
 
-        const mlData = await mlResponse.json();
+            // Handle Render Free Tier "Spinning Up" HTML interception
+            const contentType = mlResponse.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                throw new Error("Render is currently waking up the ML service from sleep mode. Please wait 60 seconds and click again!");
+            }
+            
+            if (!mlResponse.ok) {
+                const errorText = await mlResponse.text();
+                if (mlResponse.status === 429) {
+                    return res.status(429).json({ status: "denied", reason: "Too Many Requests: The security scanning service is currently rate limited. Please try again in a few minutes." });
+                }
+                throw new Error(`UEBA API Error (${mlResponse.status}): ${errorText}`);
+            }
 
-        if (mlData.anomaly_score > 0) {
-            return res.status(403).json({ status: "denied", reason: mlData.reason || "ANOMALY_SCORE_HIGH" });
+            const mlData = await mlResponse.json();
+
+            if (mlData.anomaly_score > 0) {
+                return res.status(403).json({ status: "denied", reason: mlData.reason || "ANOMALY_SCORE_HIGH" });
+            }
         }
 
         // 3. Find asset, Decrypt and serve

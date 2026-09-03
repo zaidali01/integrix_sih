@@ -4,6 +4,10 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
+/**
+ * @title RoleToken
+ * @dev Soulbound ERC1155 tokens representing different access control roles.
+ */
 contract RoleToken is ERC1155, AccessControl {
     bytes32 public constant ISSUER_ROLE = keccak256("ISSUER_ROLE");
 
@@ -12,31 +16,50 @@ contract RoleToken is ERC1155, AccessControl {
     uint256 public constant AUDITOR = 3;
     uint256 public constant USER = 4;
 
+    error NonTransferable();
+
+    event RoleGranted(address indexed account, uint256 indexed roleId);
+    event RoleRevoked(address indexed account, uint256 indexed roleId);
+
     constructor(address defaultAdmin) ERC1155("") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
     }
 
-    function setURI(string memory newuri) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setURI(string calldata newuri) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setURI(newuri);
     }
 
-    function mintRole(address account, uint256 id) public onlyRole(ISSUER_ROLE) {
+    /**
+     * @dev Mints a role token to a specific account.
+     */
+    function mintRole(address account, uint256 id) external onlyRole(ISSUER_ROLE) {
         _mint(account, id, 1, "");
+        emit RoleGranted(account, id);
     }
     
-    function mintBatchRole(address account, uint256[] memory ids) public onlyRole(ISSUER_ROLE) {
+    /**
+     * @dev Batch mints multiple roles to a specific account.
+     */
+    function mintBatchRole(address account, uint256[] calldata ids) external onlyRole(ISSUER_ROLE) {
         uint256[] memory amounts = new uint256[](ids.length);
         for(uint256 i = 0; i < ids.length; i++) {
             amounts[i] = 1;
+            emit RoleGranted(account, ids[i]);
         }
         _mintBatch(account, ids, amounts, "");
     }
 
-    function revokeRole(address account, uint256 id) public onlyRole(ISSUER_ROLE) {
+    /**
+     * @dev Revokes a role token from a specific account.
+     */
+    function revokeRole(address account, uint256 id) external onlyRole(ISSUER_ROLE) {
         _burn(account, id, 1);
+        emit RoleRevoked(account, id);
     }
 
-    // Soulbound logic: prevent user-to-user transfers
+    /**
+     * @dev Soulbound logic: disables user-to-user transfers.
+     */
     function _update(
         address from,
         address to,
@@ -44,12 +67,11 @@ contract RoleToken is ERC1155, AccessControl {
         uint256[] memory values
     ) internal virtual override {
         if (from != address(0) && to != address(0)) {
-            revert("RoleToken: Roles are non-transferable");
+            revert NonTransferable();
         }
         super._update(from, to, ids, values);
     }
 
-    // Required override
     function supportsInterface(bytes4 interfaceId)
         public
         view

@@ -28,7 +28,22 @@ async function main() {
   await accessBadge.waitForDeployment();
   console.log("AccessBadge deployed to:", await accessBadge.getAddress());
   
-  // NOTE: In production, the deployer would grant MINTER_ROLE and ISSUER_ROLE to the backend wallet here.
+  // Grant MINTER_ROLE and ISSUER_ROLE to the deployer so they can test it out of the box
+  const minterRole = await assetNFT.MINTER_ROLE();
+  await assetNFT.grantRole(minterRole, deployer.address);
+  console.log("Granted MINTER_ROLE on AssetNFT to:", deployer.address);
+
+  const issuerRoleIdentity = await identityNFT.ISSUER_ROLE();
+  await identityNFT.grantRole(issuerRoleIdentity, deployer.address);
+  console.log("Granted ISSUER_ROLE on IdentityNFT to:", deployer.address);
+
+  const issuerRoleBadge = await accessBadge.ISSUER_ROLE();
+  await accessBadge.grantRole(issuerRoleBadge, deployer.address);
+  console.log("Granted ISSUER_ROLE on AccessBadge to:", deployer.address);
+  
+  const issuerRoleRole = await roleToken.ISSUER_ROLE();
+  await roleToken.grantRole(issuerRoleRole, deployer.address);
+  console.log("Granted ISSUER_ROLE on RoleToken to:", deployer.address);
 }
 
 main().catch((error) => {

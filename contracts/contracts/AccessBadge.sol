@@ -4,27 +4,45 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
+/**
+ * @title AccessBadge
+ * @dev Soulbound ERC1155 tokens mapped to Asset IDs granting read/write access.
+ */
 contract AccessBadge is ERC1155, AccessControl {
     bytes32 public constant ISSUER_ROLE = keccak256("ISSUER_ROLE");
     
+    error NonTransferable();
+
+    event BadgeIssued(address indexed to, uint256 indexed assetId);
+    event BadgeRevoked(address indexed from, uint256 indexed assetId);
+
     constructor(address defaultAdmin) ERC1155("") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
     }
 
-    function setURI(string memory newuri) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setURI(string calldata newuri) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setURI(newuri);
     }
 
-    // tokenId = assetId, amount is always 1 for access
-    function issueBadge(address to, uint256 assetId) public onlyRole(ISSUER_ROLE) {
+    /**
+     * @dev Issues an access badge for a specific assetId to an address.
+     */
+    function issueBadge(address to, uint256 assetId) external onlyRole(ISSUER_ROLE) {
         _mint(to, assetId, 1, "");
+        emit BadgeIssued(to, assetId);
     }
 
-    function revokeBadge(address from, uint256 assetId) public onlyRole(ISSUER_ROLE) {
+    /**
+     * @dev Revokes an access badge for a specific assetId from an address.
+     */
+    function revokeBadge(address from, uint256 assetId) external onlyRole(ISSUER_ROLE) {
         _burn(from, assetId, 1);
+        emit BadgeRevoked(from, assetId);
     }
 
-    // Soulbound logic: prevent user-to-user transfers
+    /**
+     * @dev Soulbound logic: disables user-to-user transfers.
+     */
     function _update(
         address from,
         address to,
@@ -32,12 +50,11 @@ contract AccessBadge is ERC1155, AccessControl {
         uint256[] memory values
     ) internal virtual override {
         if (from != address(0) && to != address(0)) {
-            revert("AccessBadge: Badges are non-transferable");
+            revert NonTransferable();
         }
         super._update(from, to, ids, values);
     }
 
-    // Required override
     function supportsInterface(bytes4 interfaceId)
         public
         view
