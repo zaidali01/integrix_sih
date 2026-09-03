@@ -124,9 +124,8 @@ router.post('/upload', mockAuth, upload.single('file'), async (req, res) => {
 
     // 3. Mint Asset NFT on-chain
     try {
-        // Note: For hackathon, assume transaction succeeds
-        // const tx = await assetNFT.mintAsset(req.user.address, hash);
-        // await tx.wait();
+        const tx = await assetNFT.mintAsset(req.user.address, hash);
+        await tx.wait();
         
         const newAsset = { 
             id: uploadedAssets.length + 1, 
@@ -266,6 +265,15 @@ router.post('/revoke', mockAuth, async (req, res) => {
          return res.status(403).json({ error: "SECURITY ALERT: Only Admins can revoke access badges. This incident has been logged." });
     }
 
+    // Execute actual blockchain transaction to burn token
+    try {
+        const tx = await accessBadge.revokeBadge(userId, assetId);
+        await tx.wait();
+    } catch (err) {
+        console.error("Blockchain revoke failed", err);
+        return res.status(500).json({ error: "Failed to burn badge on-chain" });
+    }
+
     revokedAccess.push({ userId, assetId });
     await syncDatabaseToS3(); // Save to MinIO
     
@@ -290,11 +298,19 @@ router.post('/assign-role', mockAuth, async (req, res) => {
          return res.status(403).json({ error: "SECURITY ALERT: Only Admins can assign roles. Your unauthorized attempt has been logged." });
     }
 
+    // Execute actual blockchain transaction to mint role
+    try {
+        const tx = await roleToken.mintRole(targetAddress, roleId);
+        await tx.wait();
+    } catch (err) {
+        console.error("Blockchain role mint failed", err);
+        return res.status(500).json({ error: "Failed to mint role on-chain" });
+    }
+
     userRoles[targetAddress.toLowerCase()] = String(roleId);
     await syncDatabaseToS3(); // Save to MinIO
 
-    // Mock successful transaction
-    res.json({ status: "success", message: "Role assigned via fast L2 state" });
+    res.json({ status: "success", message: "Role assigned on-chain and synced to L2" });
 });
 
 // Fetch on-chain logs for the UI Audit Log
